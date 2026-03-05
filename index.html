@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生産管理-資料検索システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e8eef5 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1a237e 0%, #1565c0 50%, #0288d1 100%);
+            color: #fff;
+            padding: 0 24px;
+            box-shadow: 0 4px 20px rgba(21, 101, 192, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #fff;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .user-info {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.85);
+        }
+        .btn-signout {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-signout:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        /* Main content */
+        .main {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 40px 20px 60px;
+        }
+        /* Sign-in card */
+        .signin-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 48px 40px;
+            text-align: center;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            animation: fadeUp 0.4s ease;
+        }
+        .signin-card h2 {
+            font-size: 22px;
+            color: #1a237e;
+            margin-bottom: 8px;
+        }
+        .signin-card p {
+            color: #666;
+            margin-bottom: 28px;
+            font-size: 14px;
+        }
+        .btn-signin {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #1565c0, #0288d1);
+            color: #fff;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(21, 101, 192, 0.3);
+        }
+        .btn-signin:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(21, 101, 192, 0.4);
+        }
+        .btn-signin:active {
+            transform: translateY(0);
+        }
+        /* Menu section */
+        .menu-section {
+            display: none;
+            animation: fadeUp 0.4s ease;
+        }
+        .menu-section.active {
+            display: block;
+        }
+        .section-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1565c0;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+        .section-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #1a237e;
+            margin-bottom: 24px;
+        }
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .folder-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px 24px;
+            background: #fff;
+            border: none;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.3s;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        }
+        .folder-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(21, 101, 192, 0.15);
+        }
+        .folder-card:active {
+            transform: translateY(-1px);
+        }
+        .folder-card .folder-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+        .folder-card .folder-label {
+            line-height: 1.4;
+        }
+        /* Search section */
+        .search-section {
+            display: none;
+            animation: fadeUp 0.4s ease;
+        }
+        .search-section.active {
+            display: block;
+        }
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            color: #1565c0;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 8px 0;
+            margin-bottom: 20px;
+            transition: color 0.2s;
+        }
+        .btn-back:hover {
+            color: #0d47a1;
+        }
+        .search-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        }
+        .search-box {
+            display: flex;
+            gap: 12px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 14px 20px;
+            border: 2px solid #e0e7ef;
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #f8fafc;
+        }
+        .search-box input:focus {
+            border-color: #1565c0;
+            box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.12);
+            background: #fff;
+        }
+        .btn-search {
+            background: linear-gradient(135deg, #1565c0, #0288d1);
+            color: #fff;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(21, 101, 192, 0.25);
+            white-space: nowrap;
+        }
+        .btn-search:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(21, 101, 192, 0.35);
+        }
+        /* Status */
+        .status {
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+        }
+        .status.info {
+            display: block;
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+        .status.error {
+            display: block;
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .status.success {
+            display: block;
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 32px;
+            color: #888;
+        }
+        .loading.active {
+            display: block;
+        }
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e0e7ef;
+            border-top-color: #1565c0;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+        /* Results */
+        .results-wrapper {
+            margin-top: 24px;
+        }
+        .result-count {
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #fff;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        }
+        .results-table th {
+            background-color: #f0f4f8;
+            padding: 14px 20px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e0e7ef;
+        }
+        .results-table td {
+            padding: 14px 20px;
+            border-bottom: 1px solid #f0f4f8;
+            font-size: 14px;
+        }
+        .results-table tr:last-child td {
+            border-bottom: none;
+        }
+        .results-table tbody tr:nth-child(even) {
+            background-color: #fafbfc;
+        }
+        .results-table tbody tr:hover td {
+            background-color: #e3f2fd;
+        }
+        .results-table a {
+            color: #1565c0;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .results-table a:hover {
+            color: #0d47a1;
+            text-decoration: underline;
+        }
+        /* Animations */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <h1 id="page-title">生産管理-資料検索システム</h1>
+            <div class="header-right">
+                <span id="user-info" class="user-info"></span>
+                <button id="btn-signout" class="btn-signout" onclick="handleSignOut()" style="display:none;">サインアウト</button>
+            </div>
+        </div>
+    </header>
+    <div class="main">
+        <!-- Sign-in -->
+        <div id="signin-section" class="signin-card">
+            <h2>生産管理-資料検索システム</h2>
+            <p>Google ドライブ内のファイルを検索します</p>
+            <button id="btn-signin" class="btn-signin" onclick="handleSignIn()">
+                <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.9 33 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34 6 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.2-2.7-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.5 18.8 12 24 12c3.1 0 5.8 1.2 8 3l5.7-5.7C34 6 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.2 26.7 36 24 36c-5.4 0-9.9-3.5-11.5-8.3l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.2-2.7-.4-3.9z"/></svg>
+                Google でサインイン
+            </button>
+        </div>
+        <!-- Menu -->
+        <div id="menu-section" class="menu-section">
+            <p class="section-label">フォルダ選択</p>
+            <p class="section-title">検索するフォルダを選択してください</p>
+            <div id="menu-buttons" class="menu-grid"></div>
+        </div>
+        <!-- Search -->
+        <div id="search-section" class="search-section">
+            <button class="btn-back" onclick="backToMenu()">← フォルダ選択に戻る</button>
+            <div class="search-card">
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="ファイル名で検索..." onkeydown="if(event.key==='Enter') handleSearch()">
+                    <button class="btn-search" onclick="handleSearch()">検索</button>
+                </div>
+            </div>
+        </div>
+        <div id="status" class="status"></div>
+        <div id="loading" class="loading">検索中</div>
+        <div id="results" class="results-wrapper"></div>
+    </div>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+        // ============================================================
+        // ここにご自身の OAuth 2.0 クライアントIDを設定してください
+        const CLIENT_ID = '158402335540-hk7sn0l40k0hquhcfvm27ceroj2ubpl7.apps.googleusercontent.com';
+        // 検索対象フォルダの設定（追加する場合は配列に1行追加するだけ）
+        const FOLDERS = [
+            { id: '1HaorqgbrUlk8ZcqY_z4zRXx2z0LE3BOf', label: '業務手順書' },
+        ];
+        const DEFAULT_TITLE = '生産管理-資料検索システム';
+        // ============================================================
+        const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+        const DRIVE_API = 'https://www.googleapis.com/drive/v3/files';
+        let tokenClient;
+        let accessToken = null;
+        let currentFolder = null;
+        window.addEventListener('load', () => {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: onTokenResponse,
+            });
+            renderMenu();
+            // 自動サインイン: Googleログイン済みならポップアップなしでトークン取得
+            tokenClient.requestAccessToken({ prompt: '' });
+        });
+        function onTokenResponse(response) {
+            if (response.error) {
+                document.getElementById('signin-section').style.display = '';
+                return;
+            }
+            accessToken = response.access_token;
+            document.getElementById('signin-section').style.display = 'none';
+            document.getElementById('btn-signout').style.display = 'inline-block';
+            document.getElementById('menu-section').classList.add('active');
+            fetchUserInfo();
+        }
+        function handleSignIn() {
+            if (CLIENT_ID.startsWith('YOUR_CLIENT_ID')) {
+                showStatus('CLIENT_ID が設定されていません。ソースコード内の CLIENT_ID をご自身のクライアントIDに置き換えてください。', 'error');
+                return;
+            }
+            tokenClient.requestAccessToken();
+        }
+        function handleSignOut() {
+            if (accessToken) {
+                google.accounts.oauth2.revoke(accessToken);
+            }
+            accessToken = null;
+            currentFolder = null;
+            document.getElementById('signin-section').style.display = '';
+            document.getElementById('btn-signout').style.display = 'none';
+            document.getElementById('menu-section').classList.remove('active');
+            document.getElementById('search-section').classList.remove('active');
+            document.getElementById('user-info').textContent = '';
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('page-title').textContent = DEFAULT_TITLE;
+            hideStatus();
+        }
+        // --- メニュー関連 ---
+        function renderMenu() {
+            const container = document.getElementById('menu-buttons');
+            container.innerHTML = FOLDERS.map((folder, i) =>
+                `<button class="folder-card" onclick="selectFolder(${i})">
+                    <span class="folder-icon">📁</span>
+                    <span class="folder-label">${escapeHtml(folder.label)}</span>
+                </button>`
+            ).join('');
+        }
+        function selectFolder(index) {
+            currentFolder = FOLDERS[index];
+            document.getElementById('menu-section').classList.remove('active');
+            document.getElementById('search-section').classList.add('active');
+            document.getElementById('page-title').textContent = currentFolder.label;
+            document.getElementById('search-input').value = '';
+            document.getElementById('results').innerHTML = '';
+            hideStatus();
+        }
+        function backToMenu() {
+            currentFolder = null;
+            document.getElementById('search-section').classList.remove('active');
+            document.getElementById('menu-section').classList.add('active');
+            document.getElementById('page-title').textContent = DEFAULT_TITLE;
+            document.getElementById('search-input').value = '';
+            document.getElementById('results').innerHTML = '';
+            hideStatus();
+        }
+        // --- 検索関連 ---
+        async function fetchUserInfo() {
+            try {
+                const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                    headers: { 'Authorization': 'Bearer ' + accessToken }
+                });
+                const data = await res.json();
+                document.getElementById('user-info').textContent = data.email || '';
+            } catch {
+                // ユーザー情報の取得失敗は無視
+            }
+        }
+        async function handleSearch() {
+            const keyword = document.getElementById('search-input').value.trim();
+            if (!keyword) {
+                showStatus('検索キーワードを入力してください', 'info');
+                return;
+            }
+            if (!accessToken) {
+                showStatus('先にサインインしてください', 'error');
+                return;
+            }
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('results').innerHTML = '';
+            hideStatus();
+            try {
+                const files = await searchFiles(keyword);
+                renderResults(files, keyword);
+            } catch (err) {
+                showStatus('検索中にエラーが発生しました: ' + err.message, 'error');
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+            }
+        }
+        async function searchFiles(keyword) {
+            const escapedKeyword = keyword.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const query = `name contains '${escapedKeyword}' and '${currentFolder.id}' in parents and trashed=false`;
+            const params = new URLSearchParams({
+                q: query,
+                fields: 'files(id,name,modifiedTime,size,webViewLink)',
+                orderBy: 'modifiedTime desc',
+                pageSize: '100',
+                includeItemsFromAllDrives: 'true',
+                supportsAllDrives: 'true',
+            });
+            const res = await fetch(`${DRIVE_API}?${params}`, {
+                headers: { 'Authorization': 'Bearer ' + accessToken }
+            });
+            if (!res.ok) {
+                if (res.status === 401) {
+                    accessToken = null;
+                    handleSignOut();
+                    throw new Error('セッションが期限切れです。再度サインインしてください。');
+                }
+                throw new Error(`API エラー (${res.status})`);
+            }
+            const data = await res.json();
+            return data.files || [];
+        }
+        function renderResults(files, keyword) {
+            const container = document.getElementById('results');
+            if (files.length === 0) {
+                container.innerHTML = `<div class="result-count">「${escapeHtml(keyword)}」に一致するファイルは見つかりませんでした。</div>`;
+                return;
+            }
+            let html = `<div class="result-count">${files.length} 件のファイルが見つかりました</div>`;
+            html += `<table class="results-table">
+                <thead>
+                    <tr>
+                        <th>ファイル名</th>
+                        <th>更新日時</th>
+                        <th>サイズ</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            for (const file of files) {
+                const modifiedDate = new Date(file.modifiedTime).toLocaleString('ja-JP');
+                const fileSize = file.size ? formatFileSize(Number(file.size)) : '-';
+                const link = file.webViewLink || '#';
+                html += `<tr>
+                    <td><a href="${escapeHtml(link)}" target="_blank" rel="noopener">${escapeHtml(file.name)}</a></td>
+                    <td>${modifiedDate}</td>
+                    <td>${fileSize}</td>
+                </tr>`;
+            }
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+        function showStatus(message, type) {
+            const el = document.getElementById('status');
+            el.textContent = message;
+            el.className = 'status ' + type;
+        }
+        function hideStatus() {
+            document.getElementById('status').className = 'status';
+        }
+    </script>
+</body>
+</html>
