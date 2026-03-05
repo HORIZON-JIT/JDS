@@ -386,8 +386,8 @@
             <button class="btn-back" onclick="backToMenu()">← フォルダ選択に戻る</button>
             <div class="search-card">
                 <div class="search-box">
-                    <input type="text" id="search-input" placeholder="ファイル名で検索..." onkeydown="if(event.key==='Enter') handleSearch()">
-                    <button class="btn-search" onclick="handleSearch()">検索</button>
+                    <input type="text" id="search-input" placeholder="ファイル名で絞り込み..." oninput="handleSearch()" onkeydown="if(event.key==='Enter') handleSearch()">
+                    <button class="btn-search" onclick="handleSearch()">絞り込み</button>
                 </div>
             </div>
         </div>
@@ -411,6 +411,7 @@
         let tokenClient;
         let accessToken = null;
         let currentFolder = null;
+        let allFiles = []; // フォルダ内の全ファイルを保持
         window.addEventListener('load', () => {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
@@ -464,17 +465,29 @@
                 </button>`
             ).join('');
         }
-        function selectFolder(index) {
+        async function selectFolder(index) {
             currentFolder = FOLDERS[index];
+            allFiles = [];
             document.getElementById('menu-section').classList.remove('active');
             document.getElementById('search-section').classList.add('active');
             document.getElementById('page-title').textContent = currentFolder.label;
             document.getElementById('search-input').value = '';
             document.getElementById('results').innerHTML = '';
             hideStatus();
+            // フォルダ内の全ファイルを自動取得して表示
+            document.getElementById('loading').classList.add('active');
+            try {
+                allFiles = await fetchAllFiles();
+                renderResults(allFiles, '');
+            } catch (err) {
+                showStatus('ファイル一覧の取得中にエラーが発生しました: ' + err.message, 'error');
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+            }
         }
         function backToMenu() {
             currentFolder = null;
+            allFiles = [];
             document.getElementById('search-section').classList.remove('active');
             document.getElementById('menu-section').classList.add('active');
             document.getElementById('page-title').textContent = DEFAULT_TITLE;
@@ -494,60 +507,63 @@
                 // ユーザー情報の取得失敗は無視
             }
         }
-        async function handleSearch() {
+        function handleSearch() {
             const keyword = document.getElementById('search-input').value.trim();
-            if (!keyword) {
-                showStatus('検索キーワードを入力してください', 'info');
-                return;
-            }
-            if (!accessToken) {
-                showStatus('先にサインインしてください', 'error');
-                return;
-            }
-            document.getElementById('loading').classList.add('active');
-            document.getElementById('results').innerHTML = '';
             hideStatus();
-            try {
-                const files = await searchFiles(keyword);
-                renderResults(files, keyword);
-            } catch (err) {
-                showStatus('検索中にエラーが発生しました: ' + err.message, 'error');
-            } finally {
-                document.getElementById('loading').classList.remove('active');
+            if (!keyword) {
+                // キーワード空なら全件表示
+                renderResults(allFiles, '');
+                return;
             }
+            // クライアント側でファイル名を絞り込み
+            const lower = keyword.toLowerCase();
+            const filtered = allFiles.filter(f => f.name.toLowerCase().includes(lower));
+            renderResults(filtered, keyword);
         }
-        async function searchFiles(keyword) {
-            const escapedKeyword = keyword.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-            const query = `name contains '${escapedKeyword}' and '${currentFolder.id}' in parents and trashed=false`;
-            const params = new URLSearchParams({
-                q: query,
-                fields: 'files(id,name,modifiedTime,size,webViewLink)',
-                orderBy: 'modifiedTime desc',
-                pageSize: '100',
-                includeItemsFromAllDrives: 'true',
-                supportsAllDrives: 'true',
-            });
-            const res = await fetch(`${DRIVE_API}?${params}`, {
-                headers: { 'Authorization': 'Bearer ' + accessToken }
-            });
-            if (!res.ok) {
-                if (res.status === 401) {
-                    accessToken = null;
-                    handleSignOut();
-                    throw new Error('セッションが期限切れです。再度サインインしてください。');
+        async function fetchAllFiles() {
+            const query = `'${currentFolder.id}' in parents and trashed=false`;
+            let files = [];
+            let pageToken = '';
+            do {
+                const params = new URLSearchParams({
+                    q: query,
+                    fields: 'nextPageToken,files(id,name,modifiedTime,size,webViewLink)',
+                    orderBy: 'modifiedTime desc',
+                    pageSize: '1000',
+                    includeItemsFromAllDrives: 'true',
+                    supportsAllDrives: 'true',
+                });
+                if (pageToken) params.set('pageToken', pageToken);
+                const res = await fetch(`${DRIVE_API}?${params}`, {
+                    headers: { 'Authorization': 'Bearer ' + accessToken }
+                });
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        accessToken = null;
+                        handleSignOut();
+                        throw new Error('セッションが期限切れです。再度サインインしてください。');
+                    }
+                    throw new Error(`API エラー (${res.status})`);
                 }
-                throw new Error(`API エラー (${res.status})`);
-            }
-            const data = await res.json();
-            return data.files || [];
+                const data = await res.json();
+                files = files.concat(data.files || []);
+                pageToken = data.nextPageToken || '';
+            } while (pageToken);
+            return files;
         }
         function renderResults(files, keyword) {
             const container = document.getElementById('results');
             if (files.length === 0) {
-                container.innerHTML = `<div class="result-count">「${escapeHtml(keyword)}」に一致するファイルは見つかりませんでした。</div>`;
+                const msg = keyword
+                    ? `「${escapeHtml(keyword)}」に一致するファイルは見つかりませんでした。`
+                    : 'このフォルダにはファイルがありません。';
+                container.innerHTML = `<div class="result-count">${msg}</div>`;
                 return;
             }
-            let html = `<div class="result-count">${files.length} 件のファイルが見つかりました</div>`;
+            const countMsg = keyword
+                ? `${files.length} 件のファイルが一致しました（全 ${allFiles.length} 件中）`
+                : `${files.length} 件のファイル`;
+            let html = `<div class="result-count">${countMsg}</div>`;
             html += `<table class="results-table">
                 <thead>
                     <tr>
