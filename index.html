@@ -315,6 +315,14 @@
             letter-spacing: 0.5px;
             border-bottom: 2px solid #e0e7ef;
         }
+        .results-table th.sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s;
+        }
+        .results-table th.sortable:hover {
+            color: #1565c0;
+        }
         .results-table td {
             padding: 14px 20px;
             border-bottom: 1px solid #f0f4f8;
@@ -412,6 +420,7 @@
         let accessToken = null;
         let currentFolder = null;
         let allFiles = []; // フォルダ内の全ファイルを保持
+        let currentSort = { key: 'modifiedTime', order: 'desc' }; // デフォルト: 更新日時降順
         window.addEventListener('load', () => {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
@@ -549,7 +558,34 @@
                 files = files.concat(data.files || []);
                 pageToken = data.nextPageToken || '';
             } while (pageToken);
-            return files;
+            // JSONファイルを除外
+            return files.filter(f => !f.name.toLowerCase().endsWith('.json'));
+        }
+        function sortFiles(files) {
+            const sorted = [...files];
+            sorted.sort((a, b) => {
+                let cmp = 0;
+                if (currentSort.key === 'name') {
+                    cmp = a.name.localeCompare(b.name, 'ja');
+                } else {
+                    cmp = new Date(a.modifiedTime) - new Date(b.modifiedTime);
+                }
+                return currentSort.order === 'asc' ? cmp : -cmp;
+            });
+            return sorted;
+        }
+        function toggleSort(key) {
+            if (currentSort.key === key) {
+                currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.key = key;
+                currentSort.order = key === 'name' ? 'asc' : 'desc';
+            }
+            handleSearch();
+        }
+        function getSortIcon(key) {
+            if (currentSort.key !== key) return ' ⇅';
+            return currentSort.order === 'asc' ? ' ↑' : ' ↓';
         }
         function renderResults(files, keyword) {
             const container = document.getElementById('results');
@@ -560,6 +596,7 @@
                 container.innerHTML = `<div class="result-count">${msg}</div>`;
                 return;
             }
+            const sorted = sortFiles(files);
             const countMsg = keyword
                 ? `${files.length} 件のファイルが一致しました（全 ${allFiles.length} 件中）`
                 : `${files.length} 件のファイル`;
@@ -567,13 +604,13 @@
             html += `<table class="results-table">
                 <thead>
                     <tr>
-                        <th>ファイル名</th>
-                        <th>更新日時</th>
+                        <th class="sortable" onclick="toggleSort('name')">ファイル名${getSortIcon('name')}</th>
+                        <th class="sortable" onclick="toggleSort('modifiedTime')">更新日時${getSortIcon('modifiedTime')}</th>
                         <th>サイズ</th>
                     </tr>
                 </thead>
                 <tbody>`;
-            for (const file of files) {
+            for (const file of sorted) {
                 const modifiedDate = new Date(file.modifiedTime).toLocaleString('ja-JP');
                 const fileSize = file.size ? formatFileSize(Number(file.size)) : '-';
                 const link = file.webViewLink || '#';
